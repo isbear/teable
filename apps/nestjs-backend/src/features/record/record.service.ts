@@ -77,6 +77,7 @@ import type { IVisualTableDefaultField } from '../field/constant';
 import { preservedDbFieldNames } from '../field/constant';
 import type { IFieldInstance } from '../field/model/factory';
 import { createFieldInstanceByRaw } from '../field/model/factory';
+import type { FormulaFieldDto } from '../field/model/field-dto/formula-field.dto';
 import { TableIndexService } from '../table/table-index.service';
 import { ROW_ORDER_FIELD_PREFIX } from '../view/constant';
 import { RecordPermissionService } from './record-permission.service';
@@ -116,6 +117,21 @@ export class RecordService {
     @ThresholdConfig() private readonly thresholdConfig: IThresholdConfig
   ) {}
 
+  /**
+   * Get the database column name to query for a field
+   * For formula fields with dbGenerated=true, use the generated column name
+   * For lookup formula fields, use the standard field name
+   */
+  private getQueryColumnName(field: IFieldInstance): string {
+    if (field.type === FieldType.Formula && !field.isLookup) {
+      const formulaField = field as FormulaFieldDto;
+      if (formulaField.options.dbGenerated) {
+        return formulaField.getGeneratedColumnName();
+      }
+    }
+    return field.dbFieldName;
+  }
+
   private dbRecord2RecordFields(
     record: IRecord['fields'],
     fields: IFieldInstance[],
@@ -124,7 +140,8 @@ export class RecordService {
   ) {
     return fields.reduce<IRecord['fields']>((acc, field) => {
       const fieldNameOrId = field[fieldKeyType];
-      const dbCellValue = record[field.dbFieldName];
+      const queryColumnName = this.getQueryColumnName(field);
+      const dbCellValue = record[queryColumnName];
       const cellValue = field.convertDBValue2CellValue(dbCellValue);
       if (cellValue != null) {
         acc[fieldNameOrId] =
@@ -1297,7 +1314,9 @@ export class RecordService {
   ): Promise<ISnapshotBase<IRecord>[]> {
     const { tableId, recordIds, projection, fieldKeyType, cellFormat } = query;
     const fields = await this.getFieldsByProjection(tableId, projection, fieldKeyType);
-    const fieldNames = fields.map((f) => f.dbFieldName).concat(Array.from(preservedDbFieldNames));
+    const fieldNames = fields
+      .map((f) => this.getQueryColumnName(f))
+      .concat(Array.from(preservedDbFieldNames));
     const nativeQuery = builder
       .from(viewQueryDbTableName)
       .select(fieldNames)
@@ -1672,7 +1691,7 @@ export class RecordService {
       this.convertProjection(projection),
       fieldKeyType
     );
-    const fieldNames = fields.map((f) => f.dbFieldName);
+    const fieldNames = fields.map((f) => this.getQueryColumnName(f));
 
     const { filter: filterWithGroup } = await this.getGroupRelatedData(tableId, query);
 
@@ -1690,12 +1709,11 @@ export class RecordService {
     queryBuilder.select(fieldNames.concat('__id'));
     skip && queryBuilder.offset(skip);
     take !== -1 && take && queryBuilder.limit(take);
+    const sql = queryBuilder.toQuery();
 
     const result = await this.prismaService
       .txClient()
-      .$queryRawUnsafe<
-        (Pick<IRecord, 'fields'> & Pick<IVisualTableDefaultField, '__id'>)[]
-      >(queryBuilder.toQuery());
+      .$queryRawUnsafe<(Pick<IRecord, 'fields'> & Pick<IVisualTableDefaultField, '__id'>)[]>(sql);
 
     return result.map((record) => {
       return {
