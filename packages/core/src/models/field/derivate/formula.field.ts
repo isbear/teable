@@ -3,6 +3,7 @@ import { ConversionVisitor, EvalVisitor } from '../../../formula';
 import { FieldReferenceVisitor } from '../../../formula/field-reference.visitor';
 import type { FieldType, CellValueType } from '../constant';
 import type { FieldCore } from '../field';
+import type { IFieldVisitor } from '../field-visitor.interface';
 import {
   unionFormattingSchema,
   getFormattingSchema,
@@ -104,5 +105,9 @@ export class FormulaFieldCore extends FormulaAbstractCore {
         showAs: getShowAsSchema(this.cellValueType, this.isMultipleCellValue),
       })
       .safeParse(this.options);
+  }
+
+  accept<T>(visitor: IFieldVisitor<T>): T {
+    return visitor.visitFormulaField(this);
   }
 }
