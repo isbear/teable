@@ -126,6 +126,11 @@ export class DeleteUserService {
         )
         .toQuery()
     );
+    await this.prismaService.txClient().oAuthApp.deleteMany({
+      where: {
+        createdBy: userId,
+      },
+    });
     // clear Pin
     await this.prismaService.txClient().pinResource.deleteMany({
       where: {
