@@ -22,6 +22,7 @@ import { EmitControllerEvent } from '../../event-emitter/decorators/emit-control
 import { Events } from '../../event-emitter/events';
 import type { IClsStore } from '../../types/cls';
 import { ZodValidationPipe } from '../../zod.validation.pipe';
+import { DeleteUserService } from '../user/delete-user/delete-user.service';
 import { AuthService } from './auth.service';
 import { TokenAccess } from './decorators/token.decorator';
 import { SessionService } from './session/session.service';
@@ -31,7 +32,8 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly sessionService: SessionService,
-    private readonly cls: ClsService<IClsStore>
+    private readonly cls: ClsService<IClsStore>,
+    private readonly deleteUserService: DeleteUserService
   ) {}
 
   @Post('signout')
@@ -70,7 +72,7 @@ export class AuthController {
     if (query.confirm !== 'DELETE') {
       throw new BadRequestException('Invalid confirm');
     }
-    await this.authService.deleteUser();
+    await this.deleteUserService.deleteUser();
     await this.sessionService.signout(req);
     res.clearCookie(AUTH_SESSION_COOKIE_NAME);
   }
