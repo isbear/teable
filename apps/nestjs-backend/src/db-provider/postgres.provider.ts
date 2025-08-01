@@ -29,6 +29,7 @@ import type {
   IFormulaConversionContext,
   IGeneratedColumnQueryInterface,
   IFormulaConversionResult,
+  ISelectQueryInterface,
 } from './generated-column-query/generated-column-query.interface';
 import { GeneratedColumnQueryPostgres } from './generated-column-query/postgres/generated-column-query.postgres';
 import type { IGroupQueryExtra, IGroupQueryInterface } from './group-query/group-query.interface';
@@ -648,7 +649,7 @@ ORDER BY
     return new GeneratedColumnQueryPostgres();
   }
 
-  selectQuery(): IGeneratedColumnQueryInterface {
+  selectQuery(): ISelectQueryInterface {
     return new SelectQueryPostgres();
   }
 
