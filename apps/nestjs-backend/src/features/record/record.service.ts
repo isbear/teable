@@ -74,12 +74,11 @@ import { AttachmentsStorageService } from '../attachments/attachments-storage.se
 import StorageAdapter from '../attachments/plugins/adapter';
 import { BatchService } from '../calculation/batch.service';
 import type { IVisualTableDefaultField } from '../field/constant';
-import { preservedDbFieldNames } from '../field/constant';
 import type { IFieldInstance } from '../field/model/factory';
 import { createFieldInstanceByRaw } from '../field/model/factory';
-import type { FormulaFieldDto } from '../field/model/field-dto/formula-field.dto';
 import { TableIndexService } from '../table/table-index.service';
 import { ROW_ORDER_FIELD_PREFIX } from '../view/constant';
+import { InjectRecordQueryBuilder, IRecordQueryBuilder } from './query-builder';
 import { RecordPermissionService } from './record-permission.service';
 import { IFieldRaws } from './type';
 
@@ -114,7 +113,8 @@ export class RecordService {
     private readonly tableIndexService: TableIndexService,
     @InjectModel('CUSTOM_KNEX') private readonly knex: Knex,
     @InjectDbProvider() private readonly dbProvider: IDbProvider,
-    @ThresholdConfig() private readonly thresholdConfig: IThresholdConfig
+    @ThresholdConfig() private readonly thresholdConfig: IThresholdConfig,
+    @InjectRecordQueryBuilder() private readonly recordQueryBuilder: IRecordQueryBuilder
   ) {}
 
   /**
@@ -1307,14 +1307,13 @@ export class RecordService {
   ): Promise<ISnapshotBase<IRecord>[]> {
     const { tableId, recordIds, projection, fieldKeyType, cellFormat } = query;
     const fields = await this.getFieldsByProjection(tableId, projection, fieldKeyType);
-    const fieldNames = fields
-      .map((f) => this.getQueryColumnName(f))
-      .concat(Array.from(preservedDbFieldNames));
-    const nativeQuery = builder
-      .from(viewQueryDbTableName)
-      .select(fieldNames)
+    const qb = builder.from(viewQueryDbTableName);
+    const nativeQuery = this.recordQueryBuilder
+      .buildQuery(qb, tableId, undefined, fields)
       .whereIn('__id', recordIds)
       .toQuery();
+
+    this.logger.debug('getSnapshotBulkInner query: %s', nativeQuery);
 
     const result = await this.prismaService
       .txClient()
@@ -1684,11 +1683,10 @@ export class RecordService {
       this.convertProjection(projection),
       fieldKeyType
     );
-    const fieldNames = fields.map((f) => this.getQueryColumnName(f));
 
     const { filter: filterWithGroup } = await this.getGroupRelatedData(tableId, query);
 
-    const { queryBuilder } = await this.buildFilterSortQuery(tableId, {
+    let { queryBuilder } = await this.buildFilterSortQuery(tableId, {
       viewId,
       ignoreViewQuery,
       filter: filterWithGroup,
@@ -1699,7 +1697,7 @@ export class RecordService {
       filterLinkCellCandidate,
       filterLinkCellSelected,
     });
-    queryBuilder.select(fieldNames.concat('__id'));
+    queryBuilder = this.recordQueryBuilder.buildQuery(queryBuilder, tableId, viewId, fields);
     skip && queryBuilder.offset(skip);
     take !== -1 && take && queryBuilder.limit(take);
     const sql = queryBuilder.toQuery();
