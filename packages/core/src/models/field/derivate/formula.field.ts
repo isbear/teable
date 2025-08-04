@@ -31,6 +31,15 @@ export const formulaFieldOptionsSchema = z.object({
 
 export type IFormulaFieldOptions = z.infer<typeof formulaFieldOptionsSchema>;
 
+export const formulaFieldMetaSchema = z.object({
+  persistedAsGeneratedColumn: z.boolean().optional().default(false).openapi({
+    description:
+      'Whether this formula field is persisted as a generated column in the database. When true, the field value is computed and stored as a database generated column.',
+  }),
+});
+
+export type IFormulaFieldMeta = z.infer<typeof formulaFieldMetaSchema>;
+
 const formulaFieldCellValueSchema = z.any();
 
 export type IFormulaCellValue = z.infer<typeof formulaFieldCellValueSchema>;
@@ -99,6 +108,8 @@ export class FormulaFieldCore extends FormulaAbstractCore {
 
   declare options: IFormulaFieldOptions;
 
+  declare meta?: IFormulaFieldMeta;
+
   getExpression(): string {
     return this.options.expression;
   }
@@ -124,6 +135,10 @@ export class FormulaFieldCore extends FormulaAbstractCore {
   validateGeneratedColumnSupport(supportValidator: IGeneratedColumnQuerySupportValidator): boolean {
     const expression = this.getExpression();
     return validateFormulaSupport(supportValidator, expression);
+  }
+
+  getIsPersistedAsGeneratedColumn() {
+    return this.meta?.persistedAsGeneratedColumn || false;
   }
 
   validateOptions() {
