@@ -167,6 +167,7 @@ COPY --from=post-builder --chown=nodejs:nodejs /app/apps/nestjs-backend/static .
 COPY --chown=nodejs:nodejs scripts/start.sh ./scripts/start.sh
 COPY --chown=nodejs:nodejs scripts/db-migrate.mjs ./scripts/db-migrate.mjs
 COPY --chown=nodejs:nodejs scripts/wait-for ./scripts/wait-for
+COPY --chown=nodejs:nodejs scripts/upload-assets.mjs ./scripts/upload-assets.mjs
 
 ENV BUILD_VERSION=$BUILD_VERSION
 
@@ -175,6 +176,7 @@ RUN set -ex; \
         apt-get update; \
         apt-get install -y --no-install-recommends \
                 curl \
+                ca-certificates \
                 openssl \
                 netcat-traditional \
                 wget \

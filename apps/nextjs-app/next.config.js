@@ -114,6 +114,10 @@ const secureHeaders = createSecureHeaders({
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
+  assetPrefix:
+    isProd && process.env.NEXT_BUILD_ENV_ASSET_PREFIX
+      ? process.env.NEXT_BUILD_ENV_ASSET_PREFIX
+      : '',
   reactStrictMode: true,
   productionBrowserSourceMaps: NEXT_BUILD_ENV_SOURCEMAPS === true,
   optimizeFonts: true,
